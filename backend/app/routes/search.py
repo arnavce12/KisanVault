@@ -23,7 +23,7 @@ def natural_language_search(
 ):
     """
     Natural language query endpoint.
-    - Embeds the query with BAAI/bge-small-en-v1.5
+    - Embeds the query with llama-text-embed-v2
     - Searches Pinecone for relevant farm records
     - Fetches full records from PostgreSQL
     - Calls Groq LLM to generate an answer
