@@ -84,7 +84,7 @@ def seed():
             non_null_details = ", ".join([f"{k}: {v}" for k, v in details.items() if v is not None])
             text_to_embed = f"Field: {r.field_name}, Crop: {r.crop_name}, Season: {r.season}, Date: {r.date}, Type: {r.record_type}, Details: {non_null_details}"
             
-            embed_and_store(str(r.id), "farm_records", text_to_embed)
+            embed_and_store(str(r.id), "farm_records", text_to_embed, str(user.id))
 
         print("\nSeed data loaded successfully!")
         print("   Demo login: demo@kisanvault.com / demo1234")
