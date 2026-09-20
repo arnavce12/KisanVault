@@ -113,12 +113,11 @@ def _record_to_text(record: Dict[str, Any], table: str) -> str:
 def embed_and_store(
     record_id: str,
     table: str,
-    record: Dict[str, Any],
+    record_or_text: Any,
 ) -> None:
     """
     Embed a farm record and store it in ChromaDB.
     Called every time a record is added to the database.
-    Silently skips if ChromaDB is unavailable.
     """
     try:
         collection = _get_chroma_collection()
@@ -127,7 +126,11 @@ def embed_and_store(
             return
         model = _get_embedding_model()
 
-        text = _record_to_text(record, table)
+        if isinstance(record_or_text, str):
+            text = record_or_text
+        else:
+            text = _record_to_text(record_or_text, table)
+            
         embedding = model.encode(text).tolist()
 
         # Upsert so re-adding same record doesn't duplicate

@@ -1,12 +1,8 @@
-import { apiClient } from './apiClient';
-import { mockSearchResponse } from '@/lib/mockData';
+import { apiClient, toFrontend } from './apiClient';
 
 export const searchService = {
   query: async (question) => {
-    try {
-      return await apiClient('/search/query', { method: 'POST', body: { query: question } });
-    } catch {
-      return new Promise(resolve => setTimeout(() => resolve(mockSearchResponse), 1500));
-    }
+    const data = await apiClient('/search/query', { method: 'POST', body: { query: question } });
+    return toFrontend(data);
   }
 };

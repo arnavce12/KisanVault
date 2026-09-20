@@ -38,8 +38,9 @@ export function AuthProvider({ children }) {
 
   const login = async (identifier, password) => {
     const response = await authService.login({ identifier, password });
-    if (response.token) {
-      localStorage.setItem('kisanvault_jwt', response.token);
+    const token = response.access_token || response.token;
+    if (token) {
+      localStorage.setItem('kisanvault_jwt', token);
       setUser(response.user || { id: 'temp', name: 'Farmer' });
       router.push('/dashboard');
     }
@@ -48,8 +49,9 @@ export function AuthProvider({ children }) {
 
   const register = async (userData) => {
     const response = await authService.register(userData);
-    if (response.token) {
-      localStorage.setItem('kisanvault_jwt', response.token);
+    const token = response.access_token || response.token;
+    if (token) {
+      localStorage.setItem('kisanvault_jwt', token);
       setUser(response.user || { id: 'temp', name: userData.name });
       router.push('/dashboard');
     }

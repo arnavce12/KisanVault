@@ -1,13 +1,3 @@
-"""
-ai_service.py
-─────────────
-Handles natural-language query answering using:
-  1. ChromaDB semantic search (vector_service)
-  2. PostgreSQL full record fetch
-  3. Groq LLM (Llama 3 via LangChain) to generate the answer
-  4. Returns: answer + source_records (evidence traceability)
-"""
-
 import logging
 from typing import List, Dict, Any, Optional
 from uuid import UUID
@@ -15,102 +5,70 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.services.vector_service import query_similar
-from app.models.activity import Activity
-from app.models.expense import Expense
-from app.models.harvest import Harvest
-from app.models.crop import Crop
-from app.models.field import Field
+from app.models.farm_record import FarmRecord
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-
 # ─── Record Fetcher ───────────────────────────────────────────────────────────
 
 def _fetch_record(db: Session, record_id: str, table: str) -> Optional[Dict[str, Any]]:
-    """Fetch a full record from PostgreSQL by ID and table name."""
+    """Fetch a full record from PostgreSQL by ID (from unified farm_records table)."""
     try:
         uid = UUID(record_id)
     except Exception:
         return None
 
-    record = None
-    if table == "activities":
-        record = db.query(Activity).filter(Activity.id == uid).first()
-        if record:
-            field = db.query(Field).filter(Field.id == record.field_id).first()
-            crop = db.query(Crop).filter(Crop.id == record.crop_id).first() if record.crop_id else None
-            return {
-                "id": str(record.id),
-                "table": "activities",
-                "activity_type": record.activity_type,
-                "description": record.description,
-                "quantity": record.quantity,
-                "unit": record.unit,
-                "date": str(record.date),
-                "cost": record.cost,
-                "field_name": field.field_name if field else None,
-                "crop_name": crop.crop_name if crop else None,
-                "season": crop.season if crop else None,
-            }
-    elif table == "expenses":
-        record = db.query(Expense).filter(Expense.id == uid).first()
-        if record:
-            field = db.query(Field).filter(Field.id == record.field_id).first()
-            crop = db.query(Crop).filter(Crop.id == record.crop_id).first() if record.crop_id else None
-            return {
-                "id": str(record.id),
-                "table": "expenses",
-                "expense_type": record.expense_type,
-                "amount": record.amount,
-                "description": record.description,
-                "date": str(record.date),
-                "field_name": field.field_name if field else None,
-                "crop_name": crop.crop_name if crop else None,
-                "season": crop.season if crop else None,
-            }
-    elif table == "harvests":
-        record = db.query(Harvest).filter(Harvest.id == uid).first()
-        if record:
-            field = db.query(Field).filter(Field.id == record.field_id).first()
-            crop = db.query(Crop).filter(Crop.id == record.crop_id).first()
-            return {
-                "id": str(record.id),
-                "table": "harvests",
-                "harvest_date": str(record.harvest_date),
-                "quantity": record.quantity,
-                "unit": record.unit,
-                "quality_notes": record.quality_notes,
-                "selling_price": record.selling_price,
-                "total_revenue": record.total_revenue,
-                "field_name": field.field_name if field else None,
-                "crop_name": crop.crop_name if crop else None,
-                "season": crop.season if crop else None,
-            }
-    elif table == "crops":
-        record = db.query(Crop).filter(Crop.id == uid).first()
-        if record:
-            field = db.query(Field).filter(Field.id == record.field_id).first()
-            return {
-                "id": str(record.id),
-                "table": "crops",
-                "crop_name": record.crop_name,
-                "season": record.season,
-                "sowing_date": str(record.sowing_date) if record.sowing_date else None,
-                "expected_harvest_date": str(record.expected_harvest_date) if record.expected_harvest_date else None,
-                "status": record.status,
-                "field_name": field.field_name if field else None,
-            }
-    return None
+    # Even if table is historically something else, we only have FarmRecord now
+    # Wait, existing data in ChromaDB might have table "activities", etc.
+    # The new table is farm_records. Since the IDs are UUIDs, we just search FarmRecord
+    record = db.query(FarmRecord).filter(FarmRecord.id == uid).first()
+    if not record:
+        return None
+        
+    res = {
+        "id": str(record.id),
+        "table": "farm_records",
+        "field_name": record.field_name,
+        "crop_name": record.crop_name,
+        "season": record.season,
+        "date": str(record.date),
+        "record_type": record.record_type,
+    }
+    
+    if record.record_type == "activity":
+        res.update({
+            "activity_type": record.activity_type,
+            "description": record.description,
+            "quantity": record.quantity,
+            "unit": record.unit,
+            "cost": record.cost,
+        })
+    elif record.record_type == "expense":
+        res.update({
+            "expense_type": record.expense_type,
+            "amount": record.amount,
+            "description": record.description,
+        })
+    elif record.record_type == "harvest":
+        res.update({
+            "harvest_quantity": record.harvest_quantity,
+            "harvest_unit": record.harvest_unit,
+            "quality_notes": record.quality_notes,
+            "selling_price": record.selling_price,
+            "total_revenue": record.total_revenue,
+        })
+        
+    return res
 
 
 def _build_context(source_records: List[Dict[str, Any]]) -> str:
     """Format fetched records into a context string for the LLM."""
     lines = []
     for i, rec in enumerate(source_records, 1):
-        lines.append(f"--- Record {i} ({rec.get('table', 'unknown')}) ---")
+        lines.append(f"--- Record {i} ({rec.get('record_type', 'unknown')}) ---")
         for k, v in rec.items():
-            if k not in ("id", "table") and v is not None:
+            if k not in ("id", "table", "record_type") and v is not None:
                 lines.append(f"  {k}: {v}")
         lines.append("")
     return "\n".join(lines)
@@ -120,7 +78,7 @@ def _build_context(source_records: List[Dict[str, Any]]) -> str:
 
 def _call_llm(context: str, user_query: str) -> str:
     """
-    Call Groq LLM (Llama 3.1 8B) via LangChain.
+    Call Groq LLM via LangChain.
     Falls back to a rule-based answer if Groq key is missing.
     """
     if not settings.GROQ_API_KEY:
@@ -136,7 +94,7 @@ def _call_llm(context: str, user_query: str) -> str:
 
         llm = ChatGroq(
             api_key=settings.GROQ_API_KEY,
-            model_name="llama-3.1-8b-instant",
+            model_name="openai/gpt-oss-20b",
             temperature=0.2,
             max_tokens=1024,
         )
@@ -147,7 +105,9 @@ def _call_llm(context: str, user_query: str) -> str:
                 "Answer questions using ONLY the provided farm records. "
                 "Be specific, factual, and helpful. "
                 "Always mention the field name, crop, dates, and quantities when available. "
-                "If the records do not contain enough information, say so clearly."
+                "If the records do not contain enough information, say so clearly. "
+                "IMPORTANT: Respond in a friendly, conversational, and natural paragraph format. "
+                "Do NOT use bullet points or structured lists to regurgitate the record details."
             )),
             HumanMessage(content=(
                 f"Farm Records:\n{context}\n\n"

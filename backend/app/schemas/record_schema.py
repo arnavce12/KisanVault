@@ -1,121 +1,44 @@
 from pydantic import BaseModel, Field
 from datetime import date, datetime
 from uuid import UUID
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 
+# ─── Unified Farm Record Schemas ──────────────────────────────────────────────
 
-# ─── Field Schemas ────────────────────────────────────────────────────────────
-
-class FieldCreate(BaseModel):
+class UnifiedRecordCreate(BaseModel):
     field_name: str
-    location: Optional[str] = None
-    area_acres: Optional[float] = None
+    crop_name: str
+    season: str
+    date: date
+    record_type: str # "activity" | "expense" | "harvest"
+    details: Dict[str, Any]
 
 
-class FieldOut(FieldCreate):
+class UnifiedRecordResponse(BaseModel):
     id: UUID
     user_id: UUID
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ─── Crop Schemas ─────────────────────────────────────────────────────────────
-
-class CropCreate(BaseModel):
-    field_id: UUID
+    field_name: str
     crop_name: str
-    season: Optional[str] = None
-    sowing_date: Optional[date] = None
-    expected_harvest_date: Optional[date] = None
-    status: Optional[str] = "active"
-
-
-class CropOut(CropCreate):
-    id: UUID
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ─── Activity Schemas ─────────────────────────────────────────────────────────
-
-VALID_ACTIVITY_TYPES = [
-    "irrigation", "fertilizer", "pesticide",
-    "field_preparation", "observation", "other"
-]
-
-
-class ActivityCreate(BaseModel):
-    field_id: UUID
-    crop_id: Optional[UUID] = None
-    activity_type: str
+    season: str
+    date: date
+    record_type: str
+    
+    activity_type: Optional[str] = None
     description: Optional[str] = None
     quantity: Optional[float] = None
     unit: Optional[str] = None
-    date: date
-    cost: Optional[float] = 0.0
-
-
-class ActivityOut(ActivityCreate):
-    id: UUID
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ─── Expense Schemas ──────────────────────────────────────────────────────────
-
-class ExpenseCreate(BaseModel):
-    field_id: UUID
-    crop_id: Optional[UUID] = None
-    expense_type: str
-    amount: float
-    description: Optional[str] = None
-    date: date
-
-
-class ExpenseOut(ExpenseCreate):
-    id: UUID
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ─── Harvest Schemas ──────────────────────────────────────────────────────────
-
-class HarvestCreate(BaseModel):
-    crop_id: UUID
-    field_id: UUID
-    harvest_date: date
-    quantity: float
-    unit: Optional[str] = "kg"
+    cost: Optional[float] = None
+    
+    expense_type: Optional[str] = None
+    amount: Optional[float] = None
+    
+    harvest_quantity: Optional[float] = None
+    harvest_unit: Optional[str] = None
     quality_notes: Optional[str] = None
     selling_price: Optional[float] = None
     total_revenue: Optional[float] = None
-
-
-class HarvestOut(HarvestCreate):
-    id: UUID
+    
     created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ─── Timeline / Filter Schemas ────────────────────────────────────────────────
-
-class TimelineRecord(BaseModel):
-    """Unified record shape for timeline and history views."""
-    id: UUID
-    record_type: str          # "activity" | "expense" | "harvest" | "crop"
-    date: date
-    field_id: UUID
-    field_name: Optional[str] = None
-    crop_id: Optional[UUID] = None
-    crop_name: Optional[str] = None
-    season: Optional[str] = None
-    title: str                # human-readable headline
-    details: dict             # full record data
 
     model_config = {"from_attributes": True}
 
@@ -153,10 +76,10 @@ class SummaryStats(BaseModel):
 
 
 class SummaryResponse(BaseModel):
-    field_id: Optional[UUID] = None
+    field_id: Optional[str] = None
     field_name: Optional[str] = None
     season: Optional[str] = None
-    crop_id: Optional[UUID] = None
+    crop_id: Optional[str] = None
     crop_name: Optional[str] = None
-    ai_summary: str
+    ai_summary: Optional[str] = None
     stats: SummaryStats
