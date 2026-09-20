@@ -1,26 +1,29 @@
-import { apiClient } from './apiClient';
-import { mockSummaryData } from '@/lib/mockData';
+import { apiClient, toFrontend } from './apiClient';
+
+// Helper to flatten the backend nested stats object to match frontend UI expectations
+const mapSummary = (backendData) => {
+  const data = toFrontend(backendData);
+  if (!data) return null;
+  return {
+    ...data,
+    totalExpenses: data.stats?.totalExpenses || 0,
+    totalRevenue: data.stats?.totalRevenue || 0,
+    activityCount: data.stats?.totalActivities || 0,
+  };
+};
 
 export const summaryService = {
-  getSeason: async (seasonId) => {
-    try {
-      return await apiClient(`/summary/season${seasonId ? `?id=${seasonId}` : ''}`);
-    } catch {
-      return mockSummaryData;
-    }
+  getSeason: async (season, fieldName, generateAi = false) => {
+    if (!fieldName) throw new Error("fieldName is required for season summary");
+    const data = await apiClient(`/summary/season?field_name=${encodeURIComponent(fieldName)}&season=${encodeURIComponent(season || 'All')}&generate_ai=${generateAi}`);
+    return mapSummary(data);
   },
-  getField: async (fieldId) => {
-    try {
-      return await apiClient(`/summary/field?id=${fieldId}`);
-    } catch {
-      return mockSummaryData;
-    }
+  getField: async (fieldName, generateAi = false) => {
+    const data = await apiClient(`/summary/field?field_name=${encodeURIComponent(fieldName)}&generate_ai=${generateAi}`);
+    return mapSummary(data);
   },
-  getCrop: async (cropId) => {
-    try {
-      return await apiClient(`/summary/crop?id=${cropId}`);
-    } catch {
-      return mockSummaryData;
-    }
+  getCrop: async (cropName, generateAi = false) => {
+    const data = await apiClient(`/summary/crop?crop_name=${encodeURIComponent(cropName)}&generate_ai=${generateAi}`);
+    return mapSummary(data);
   }
 };

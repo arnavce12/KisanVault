@@ -19,13 +19,25 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sumData, recordsData] = await Promise.all([
-          summaryService.getSeason(),
-          recordsService.getTimeline()
+        const [recordsData, fieldsData] = await Promise.all([
+          recordsService.getTimeline(),
+          recordsService.getFields()
         ]);
+        
+        let sumData = { totalExpenses: 0, totalRevenue: 0, activityCount: 0 };
+        if (fieldsData && fieldsData.length > 0) {
+          try {
+            // Fetch summary for the first field to populate dashboard stats
+            sumData = await summaryService.getField(fieldsData[0], false);
+          } catch (e) {
+            console.error("Failed to fetch field summary", e);
+          }
+        }
+        
         setSummary(sumData);
         setRecentRecords(recordsData.slice(0, 3)); // Only show latest 3
       } catch (err) {
+        console.error(err);
         setError('Failed to load dashboard data.');
       } finally {
         setLoading(false);

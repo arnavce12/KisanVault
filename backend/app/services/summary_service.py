@@ -1,12 +1,3 @@
-"""
-summary_service.py
-──────────────────
-Generates AI-powered summaries for:
-  - Season-level summary (field + season)
-  - Field-level summary (all seasons)
-  - Crop-level summary
-"""
-
 import logging
 from typing import Optional, Dict, Any, List
 from uuid import UUID
@@ -14,87 +5,64 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.activity import Activity
-from app.models.expense import Expense
-from app.models.harvest import Harvest
-from app.models.crop import Crop
-from app.models.field import Field
+from app.models.farm_record import FarmRecord
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-
 # ─── Data Aggregators ─────────────────────────────────────────────────────────
 
-def _get_activities(
+def _get_records(
     db: Session,
-    field_id: Optional[UUID] = None,
-    crop_id: Optional[UUID] = None,
+    user_id: UUID,
+    field_name: Optional[str] = None,
+    crop_name: Optional[str] = None,
     season: Optional[str] = None,
-) -> List[Activity]:
-    q = db.query(Activity)
-    if field_id:
-        q = q.filter(Activity.field_id == field_id)
-    if crop_id:
-        q = q.filter(Activity.crop_id == crop_id)
-    if season:
-        # Join crops to filter by season
-        q = q.join(Crop, Activity.crop_id == Crop.id).filter(Crop.season == season)
-    return q.order_by(Activity.date).all()
+    record_type: Optional[str] = None,
+) -> List[FarmRecord]:
+    q = db.query(FarmRecord).filter(FarmRecord.user_id == user_id)
+    if field_name:
+        q = q.filter(FarmRecord.field_name == field_name)
+    if crop_name:
+        q = q.filter(FarmRecord.crop_name == crop_name)
+    if season and season != "All":
+        q = q.filter(FarmRecord.season == season)
+    if record_type:
+        q = q.filter(FarmRecord.record_type == record_type)
+    return q.order_by(FarmRecord.date).all()
 
 
-def _get_expenses(
-    db: Session,
-    field_id: Optional[UUID] = None,
-    crop_id: Optional[UUID] = None,
-    season: Optional[str] = None,
-) -> List[Expense]:
-    q = db.query(Expense)
-    if field_id:
-        q = q.filter(Expense.field_id == field_id)
-    if crop_id:
-        q = q.filter(Expense.crop_id == crop_id)
-    if season:
-        q = q.join(Crop, Expense.crop_id == Crop.id).filter(Crop.season == season)
-    return q.order_by(Expense.date).all()
-
-
-def _get_harvests(
-    db: Session,
-    field_id: Optional[UUID] = None,
-    crop_id: Optional[UUID] = None,
-    season: Optional[str] = None,
-) -> List[Harvest]:
-    q = db.query(Harvest)
-    if field_id:
-        q = q.filter(Harvest.field_id == field_id)
-    if crop_id:
-        q = q.filter(Harvest.crop_id == crop_id)
-    if season:
-        q = q.join(Crop, Harvest.crop_id == Crop.id).filter(Crop.season == season)
-    return q.order_by(Harvest.harvest_date).all()
-
-
-def _compute_stats(
-    activities: list,
-    expenses: list,
-    harvests: list,
-) -> Dict[str, Any]:
-    """Build stats dict from raw ORM objects."""
+def _compute_stats(records: List[FarmRecord]) -> Dict[str, Any]:
+    """Build stats dict from unified FarmRecords."""
     activity_breakdown: Dict[str, int] = {}
-    for a in activities:
-        activity_breakdown[a.activity_type] = activity_breakdown.get(a.activity_type, 0) + 1
-
     expense_breakdown: Dict[str, float] = {}
-    for e in expenses:
-        expense_breakdown[e.expense_type] = expense_breakdown.get(e.expense_type, 0.0) + e.amount
+    
+    total_activities = 0
+    total_expenses = 0.0
+    total_harvest_qty = 0.0
+    total_revenue = 0.0
 
-    total_expenses = sum(e.amount for e in expenses)
-    total_harvest_qty = sum(h.quantity for h in harvests)
-    total_revenue = sum((h.total_revenue or 0) for h in harvests)
+    for r in records:
+        if r.record_type == "activity":
+            total_activities += 1
+            atype = r.activity_type or "unknown"
+            activity_breakdown[atype] = activity_breakdown.get(atype, 0) + 1
+            if r.cost:
+                total_expenses += r.cost
+                expense_breakdown["Activity Cost"] = expense_breakdown.get("Activity Cost", 0.0) + r.cost
+        elif r.record_type == "expense":
+            amount = r.amount or 0.0
+            total_expenses += amount
+            etype = r.expense_type or "unknown"
+            expense_breakdown[etype] = expense_breakdown.get(etype, 0.0) + amount
+        elif r.record_type == "harvest":
+            qty = r.harvest_quantity or 0.0
+            rev = r.total_revenue or 0.0
+            total_harvest_qty += qty
+            total_revenue += rev
 
     return {
-        "total_activities": len(activities),
+        "total_activities": total_activities,
         "total_expenses": round(total_expenses, 2),
         "total_harvest_quantity": round(total_harvest_qty, 2),
         "total_revenue": round(total_revenue, 2),
@@ -105,15 +73,14 @@ def _compute_stats(
 
 # ─── LLM Summary Generator ────────────────────────────────────────────────────
 
-def _generate_ai_summary(
-    activities: list,
-    expenses: list,
-    harvests: list,
-    context_label: str,
-) -> str:
-    """Call Groq LLM to generate a human-friendly farming summary."""
-    total_expenses = sum(e.amount for e in expenses)
-    total_revenue = sum((h.total_revenue or 0) for h in harvests)
+def _generate_ai_summary(records: List[FarmRecord], context_label: str) -> str:
+    """Call LLM to generate a human-friendly farming summary."""
+    activities = [r for r in records if r.record_type == "activity"]
+    expenses = [r for r in records if r.record_type == "expense"]
+    harvests = [r for r in records if r.record_type == "harvest"]
+
+    total_expenses = sum(e.amount or 0 for e in expenses) + sum(a.cost or 0 for a in activities)
+    total_revenue = sum(h.total_revenue or 0 for h in harvests)
 
     activity_lines = "\n".join(
         f"  - {a.activity_type} on {a.date}: {a.description or ''} "
@@ -122,7 +89,7 @@ def _generate_ai_summary(
     ) or "  No activities recorded."
 
     harvest_lines = "\n".join(
-        f"  - {h.harvest_date}: {h.quantity} {h.unit or 'kg'}, "
+        f"  - {h.date}: {h.harvest_quantity} {h.harvest_unit or 'kg'}, "
         f"revenue ₹{h.total_revenue or 0}"
         for h in harvests
     ) or "  No harvests recorded."
@@ -133,8 +100,8 @@ def _generate_ai_summary(
         f"Total Expenses: ₹{total_expenses:.2f}\n"
         f"Harvests:\n{harvest_lines}\n"
         f"Total Revenue: ₹{total_revenue:.2f}\n\n"
-        f"Write a clear, practical 3-4 sentence summary for the farmer, "
-        f"highlighting key activities, costs, and outcomes."
+        f"Write a clear, practical 3-4 sentence summary for the farmer in a conversational, friendly paragraph. "
+        f"Do NOT use bullet points or structured lists. Highlight key activities, costs, and outcomes naturally."
     )
 
     if not settings.GROQ_API_KEY:
@@ -152,7 +119,7 @@ def _generate_ai_summary(
 
         llm = ChatGroq(
             api_key=settings.GROQ_API_KEY,
-            model_name="llama-3.1-8b-instant",
+            model_name="openai/gpt-oss-20b",
             temperature=0.3,
             max_tokens=512,
         )
@@ -172,79 +139,62 @@ def _generate_ai_summary(
 
 def generate_season_summary(
     db: Session,
-    field_id: UUID,
+    field_name: str,
     season: str,
+    user_id: UUID,
+    generate_ai: bool = False
 ) -> Dict[str, Any]:
-    """Generate a full summary for a field+season combination."""
-    field = db.query(Field).filter(Field.id == field_id).first()
-    if not field:
-        raise ValueError(f"Field {field_id} not found.")
-
-    activities = _get_activities(db, field_id=field_id, season=season)
-    expenses = _get_expenses(db, field_id=field_id, season=season)
-    harvests = _get_harvests(db, field_id=field_id, season=season)
-
-    stats = _compute_stats(activities, expenses, harvests)
-    label = f"{field.field_name} — {season}"
-    ai_summary = _generate_ai_summary(activities, expenses, harvests, label)
+    records = _get_records(db, user_id, field_name=field_name, season=season)
+    stats = _compute_stats(records)
+    label = f"{field_name} — {season}"
+    
+    ai_summary = None
+    if generate_ai:
+        ai_summary = _generate_ai_summary(records, label)
 
     return {
-        "field_id": str(field_id),
-        "field_name": field.field_name,
+        "field_name": field_name,
         "season": season,
-        "crop_id": None,
-        "crop_name": None,
         "ai_summary": ai_summary,
         "stats": stats,
     }
 
 
-def generate_field_summary(db: Session, field_id: UUID) -> Dict[str, Any]:
-    """Generate summary for a field across all seasons."""
-    field = db.query(Field).filter(Field.id == field_id).first()
-    if not field:
-        raise ValueError(f"Field {field_id} not found.")
-
-    activities = _get_activities(db, field_id=field_id)
-    expenses = _get_expenses(db, field_id=field_id)
-    harvests = _get_harvests(db, field_id=field_id)
-
-    stats = _compute_stats(activities, expenses, harvests)
-    ai_summary = _generate_ai_summary(activities, expenses, harvests, field.field_name)
+def generate_field_summary(
+    db: Session,
+    field_name: str,
+    user_id: UUID,
+    generate_ai: bool = False
+) -> Dict[str, Any]:
+    records = _get_records(db, user_id, field_name=field_name)
+    stats = _compute_stats(records)
+    
+    ai_summary = None
+    if generate_ai:
+        ai_summary = _generate_ai_summary(records, field_name)
 
     return {
-        "field_id": str(field_id),
-        "field_name": field.field_name,
-        "season": None,
-        "crop_id": None,
-        "crop_name": None,
+        "field_name": field_name,
         "ai_summary": ai_summary,
         "stats": stats,
     }
 
 
-def generate_crop_summary(db: Session, crop_id: UUID) -> Dict[str, Any]:
-    """Generate summary for a specific crop."""
-    crop = db.query(Crop).filter(Crop.id == crop_id).first()
-    if not crop:
-        raise ValueError(f"Crop {crop_id} not found.")
-
-    field = db.query(Field).filter(Field.id == crop.field_id).first()
-
-    activities = _get_activities(db, crop_id=crop_id)
-    expenses = _get_expenses(db, crop_id=crop_id)
-    harvests = _get_harvests(db, crop_id=crop_id)
-
-    stats = _compute_stats(activities, expenses, harvests)
-    label = f"{crop.crop_name} ({crop.season or 'unknown season'})"
-    ai_summary = _generate_ai_summary(activities, expenses, harvests, label)
+def generate_crop_summary(
+    db: Session,
+    crop_name: str,
+    user_id: UUID,
+    generate_ai: bool = False
+) -> Dict[str, Any]:
+    records = _get_records(db, user_id, crop_name=crop_name)
+    stats = _compute_stats(records)
+    
+    ai_summary = None
+    if generate_ai:
+        ai_summary = _generate_ai_summary(records, crop_name)
 
     return {
-        "field_id": str(crop.field_id),
-        "field_name": field.field_name if field else None,
-        "season": crop.season,
-        "crop_id": str(crop_id),
-        "crop_name": crop.crop_name,
+        "crop_name": crop_name,
         "ai_summary": ai_summary,
         "stats": stats,
     }

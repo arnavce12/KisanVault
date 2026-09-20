@@ -1,42 +1,32 @@
-import { apiClient } from './apiClient';
-import { mockFields, mockCrops, mockTimelineRecords } from '@/lib/mockData';
-
-// If API is not ready, we use mock data. We wrap it in promises.
+import { apiClient, toBackend, toFrontend } from './apiClient';
 
 export const recordsService = {
   getFields: async () => {
-    try {
-      return await apiClient('/records/fields');
-    } catch {
-      return mockFields;
-    }
+    // Returns list of strings
+    const data = await apiClient('/records/fields');
+    return data;
   },
-  getCrops: async () => {
-    try {
-      return await apiClient('/records/crops');
-    } catch {
-      return mockCrops;
-    }
-  },
-  getTimeline: async () => {
-    try {
-      return await apiClient('/records/timeline');
-    } catch {
-      return mockTimelineRecords;
-    }
+  getCrops: async (fieldName) => {
+    // Returns list of strings
+    const data = await apiClient(`/records/crops?field=${encodeURIComponent(fieldName)}`);
+    return data;
   },
   getFilter: async (filters) => {
-    try {
-      const queryParams = new URLSearchParams(filters).toString();
-      return await apiClient(`/records/filter?${queryParams}`);
-    } catch {
-      // Mock filtering
-      return mockTimelineRecords.filter(r => !filters.field_id || r.fieldId === filters.field_id);
-    }
+    // Clean up empty params
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== '' && v !== null && v !== undefined && v !== 'All')
+    );
+    const queryParams = new URLSearchParams(cleanFilters).toString();
+    const data = await apiClient(`/records/filter?${queryParams}`);
+    return toFrontend(data);
   },
-  createField: async (data) => apiClient('/records/field', { method: 'POST', body: data }).catch(() => data),
-  createCrop: async (data) => apiClient('/records/crop', { method: 'POST', body: data }).catch(() => data),
-  createActivity: async (data) => apiClient('/records/activity', { method: 'POST', body: data }).catch(() => data),
-  createExpense: async (data) => apiClient('/records/expense', { method: 'POST', body: data }).catch(() => data),
-  createHarvest: async (data) => apiClient('/records/harvest', { method: 'POST', body: data }).catch(() => data),
+  addRecord: async (payload) => {
+    const response = await apiClient('/records/add', { method: 'POST', body: toBackend(payload) });
+    return toFrontend(response);
+  },
+  // Timeline can just use getFilter with no params
+  getTimeline: async () => {
+    const data = await apiClient('/records/filter');
+    return toFrontend(data);
+  }
 };

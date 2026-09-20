@@ -16,7 +16,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    fields = relationship("Field", back_populates="owner", cascade="all, delete-orphan")
+    records = relationship("FarmRecord", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"

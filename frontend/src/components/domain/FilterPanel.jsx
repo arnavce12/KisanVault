@@ -14,8 +14,8 @@ export function FilterPanel({ fields, crops, currentFilters, onFilterChange }) {
     onFilterChange({});
   };
 
-  const fieldOptions = [{ label: 'All Fields', value: '' }, ...fields.map(f => ({ label: f.name, value: f.id }))];
-  const cropOptions = [{ label: 'All Crops', value: '' }, ...crops.map(c => ({ label: c.name, value: c.id }))];
+  const fieldOptions = [{ label: 'All Fields', value: '' }, ...fields.map(f => ({ label: f.fieldName, value: f.id }))];
+  const cropOptions = [{ label: 'All Crops', value: '' }, ...crops.map(c => ({ label: c.cropName, value: c.id }))];
   const typeOptions = [
     { label: 'All Types', value: '' },
     { label: 'Activity', value: 'Activity' },
