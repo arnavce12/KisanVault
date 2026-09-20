@@ -60,7 +60,7 @@ export default function SearchPage() {
       formData.append('audio', audioBlob, 'recording.webm');
       
       const token = localStorage.getItem('kisanvault_jwt');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/voice/transcribe`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/voice/transcribe`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -115,7 +115,7 @@ export default function SearchPage() {
       // Modify searchService.query to accept nativeQuery, or we can use fetch directly here for simplicity
       // but let's assume searchService passes it nicely. Since we can't edit searchService right now, we use apiClient.
       const token = localStorage.getItem('kisanvault_jwt');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/search/query`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/search/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
