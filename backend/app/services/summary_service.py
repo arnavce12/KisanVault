@@ -73,7 +73,7 @@ def _compute_stats(records: List[FarmRecord]) -> Dict[str, Any]:
 
 # ─── LLM Summary Generator ────────────────────────────────────────────────────
 
-def _generate_ai_summary(records: List[FarmRecord], context_label: str) -> str:
+def _generate_ai_summary(records: List[FarmRecord], context_label: str, lang: Optional[str] = None) -> str:
     """Call LLM to generate a human-friendly farming summary."""
     activities = [r for r in records if r.record_type == "activity"]
     expenses = [r for r in records if r.record_type == "expense"]
@@ -101,8 +101,12 @@ def _generate_ai_summary(records: List[FarmRecord], context_label: str) -> str:
         f"Harvests:\n{harvest_lines}\n"
         f"Total Revenue: ₹{total_revenue:.2f}\n\n"
         f"Write a clear, practical 3-4 sentence summary for the farmer in a conversational, friendly paragraph. "
-        f"Do NOT use bullet points or structured lists. Highlight key activities, costs, and outcomes naturally."
+        f"Do NOT use bullet points or structured lists. Highlight key activities, costs, and outcomes naturally. "
+        f"Do NOT use markdown formatting like bolding (**), italics, or asterisks. Respond in plain text only.\n"
     )
+
+    if lang:
+        prompt += f"\nCRITICAL INSTRUCTION: You MUST translate and write this summary entirely in the following language: {lang}."
 
     if not settings.GROQ_API_KEY:
         return (
@@ -142,7 +146,8 @@ def generate_season_summary(
     field_name: str,
     season: str,
     user_id: UUID,
-    generate_ai: bool = False
+    generate_ai: bool = False,
+    lang: Optional[str] = None
 ) -> Dict[str, Any]:
     records = _get_records(db, user_id, field_name=field_name, season=season)
     stats = _compute_stats(records)
@@ -150,7 +155,7 @@ def generate_season_summary(
     
     ai_summary = None
     if generate_ai:
-        ai_summary = _generate_ai_summary(records, label)
+        ai_summary = _generate_ai_summary(records, label, lang)
 
     return {
         "field_name": field_name,
@@ -164,14 +169,15 @@ def generate_field_summary(
     db: Session,
     field_name: str,
     user_id: UUID,
-    generate_ai: bool = False
+    generate_ai: bool = False,
+    lang: Optional[str] = None
 ) -> Dict[str, Any]:
     records = _get_records(db, user_id, field_name=field_name)
     stats = _compute_stats(records)
     
     ai_summary = None
     if generate_ai:
-        ai_summary = _generate_ai_summary(records, field_name)
+        ai_summary = _generate_ai_summary(records, field_name, lang)
 
     return {
         "field_name": field_name,
@@ -184,14 +190,15 @@ def generate_crop_summary(
     db: Session,
     crop_name: str,
     user_id: UUID,
-    generate_ai: bool = False
+    generate_ai: bool = False,
+    lang: Optional[str] = None
 ) -> Dict[str, Any]:
     records = _get_records(db, user_id, crop_name=crop_name)
     stats = _compute_stats(records)
     
     ai_summary = None
     if generate_ai:
-        ai_summary = _generate_ai_summary(records, crop_name)
+        ai_summary = _generate_ai_summary(records, crop_name, lang)
 
     return {
         "crop_name": crop_name,

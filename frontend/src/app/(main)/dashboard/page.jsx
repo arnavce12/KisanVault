@@ -8,8 +8,10 @@ import { summaryService } from '@/services/summary';
 import { SummaryCard } from '@/components/domain/SummaryCard';
 import { Timeline } from '@/components/domain/Timeline';
 import { Button } from '@/components/ui/Button';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [summary, setSummary] = useState(null);
   const [recentRecords, setRecentRecords] = useState([]);
@@ -70,14 +72,14 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <span className="text-secondary text-sm font-semibold tracking-wider uppercase">Overview</span>
+          <span className="text-secondary text-sm font-semibold tracking-wider uppercase">{t('overview')}</span>
           <h1 className="font-newsreader text-4xl text-text font-semibold tracking-tight mt-1">
-            Welcome back, {user?.name?.split(' ')[0] || 'Farmer'}.
+            {t('welcomeBack').replace('.', '')}, {user?.name?.split(' ')[0] || 'Farmer'}.
           </h1>
-          <p className="text-text-muted mt-2">Here is what is happening on your farm today.</p>
+          <p className="text-text-muted mt-2">{t('comprehensiveBreakdown')}</p>
         </div>
         <Link href="/add-record">
-          <Button icon="add">Add Record</Button>
+          <Button icon="add">{t('addRecord')}</Button>
         </Link>
       </div>
 
@@ -104,9 +106,9 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-newsreader text-2xl text-text font-semibold tracking-tight">Recent Activity</h2>
+          <h2 className="font-newsreader text-2xl text-text font-semibold tracking-tight">{t('recentActivities')}</h2>
           <Link href="/history" className="text-sm font-semibold text-primary hover:text-secondary transition-colors">
-            View All →
+            {t('viewAllHistory')} →
           </Link>
         </div>
         <div className="bg-surface-bright rounded-2xl p-6 shadow-sm border border-border">

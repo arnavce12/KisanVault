@@ -42,6 +42,7 @@ def natural_language_search(
 
     result = handle_query(
         user_query=payload.query,
+        original_query=payload.original_query,
         db=db,
         user_id=str(current_user.id),
         n_results=payload.n_results,

@@ -13,17 +13,20 @@ const mapSummary = (backendData) => {
 };
 
 export const summaryService = {
-  getSeason: async (season, fieldName, generateAi = false) => {
+  getSeason: async (season, fieldName, generateAi = false, lang = '') => {
     if (!fieldName) throw new Error("fieldName is required for season summary");
-    const data = await apiClient(`/summary/season?field_name=${encodeURIComponent(fieldName)}&season=${encodeURIComponent(season || 'All')}&generate_ai=${generateAi}`);
+    const langParam = lang ? `&lang=${encodeURIComponent(lang)}` : '';
+    const data = await apiClient(`/summary/season?field_name=${encodeURIComponent(fieldName)}&season=${encodeURIComponent(season || 'All')}&generate_ai=${generateAi}${langParam}`);
     return mapSummary(data);
   },
-  getField: async (fieldName, generateAi = false) => {
-    const data = await apiClient(`/summary/field?field_name=${encodeURIComponent(fieldName)}&generate_ai=${generateAi}`);
+  getField: async (fieldName, generateAi = false, lang = '') => {
+    const langParam = lang ? `&lang=${encodeURIComponent(lang)}` : '';
+    const data = await apiClient(`/summary/field?field_name=${encodeURIComponent(fieldName)}&generate_ai=${generateAi}${langParam}`);
     return mapSummary(data);
   },
-  getCrop: async (cropName, generateAi = false) => {
-    const data = await apiClient(`/summary/crop?crop_name=${encodeURIComponent(cropName)}&generate_ai=${generateAi}`);
+  getCrop: async (cropName, generateAi = false, lang = '') => {
+    const langParam = lang ? `&lang=${encodeURIComponent(lang)}` : '';
+    const data = await apiClient(`/summary/crop?crop_name=${encodeURIComponent(cropName)}&generate_ai=${generateAi}${langParam}`);
     return mapSummary(data);
   }
 };

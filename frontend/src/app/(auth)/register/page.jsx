@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function RegisterPage() {
   const { user, register, demoLogin, isLoading: authLoading } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
   const router = useRouter();
   
   const [name, setName] = useState('');
@@ -49,6 +51,18 @@ export default function RegisterPage() {
 
   return (
     <main className="min-h-screen flex flex-col relative w-full bg-surface pb-8">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-1 border border-border rounded-lg bg-surface-bright/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+        <span className="material-symbols-outlined text-[18px] text-text-muted">language</span>
+        <select 
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="bg-transparent text-sm font-semibold text-text focus:outline-none cursor-pointer appearance-none pr-1"
+        >
+          <option value="en">English</option>
+          <option value="hi">हिंदी</option>
+          <option value="mr">मराठी</option>
+        </select>
+      </div>
       {/* Visual Header */}
       <div className="relative w-full h-48 overflow-hidden">
         <img alt="Rural farmland at sunrise" className="absolute inset-0 w-full h-full object-cover object-center" src="/assets/authentic_indian_agricultural_landscape_scene_in_natural_warm_morning_daylight/screen.png" />
@@ -61,7 +75,7 @@ export default function RegisterPage() {
           </div>
           <div className="inline-flex items-center gap-1 bg-secondary-container/90 px-2.5 py-1 rounded-full text-secondary font-semibold text-xs">
             <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: "'FILL' 1"}}>shield</span>
-            <span>Secure Vault</span>
+            <span>{t('secureVault') || 'Secure Vault'}</span>
           </div>
         </div>
       </div>
@@ -70,13 +84,13 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-1 mb-6">
           <div className="flex items-center gap-1.5 text-secondary">
             <span className="material-symbols-outlined text-sm">agriculture</span>
-            <span className="text-xs tracking-wider uppercase font-semibold">GET STARTED</span>
+            <span className="text-xs tracking-wider uppercase font-semibold">{t('getStarted')}</span>
           </div>
           <h1 className="font-newsreader text-3xl text-text font-semibold tracking-tight">
-            Begin your farm record.
+            {t('beginFarmRecord')}
           </h1>
           <p className="text-base text-text-muted leading-relaxed">
-            Create a simple, secure vault for your fields, soil tests, and seasonal harvests.
+            {t('createSecureVaultDesc')}
           </p>
         </div>
 
@@ -85,7 +99,7 @@ export default function RegisterPage() {
           <form className="flex flex-col gap-4" onSubmit={handleRegister}>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-text font-semibold flex items-center gap-1" htmlFor="farmer-name">
-                <span>Full Name</span>
+                <span>{t('fullName')}</span>
                 <span className="text-primary font-bold">*</span>
               </label>
               <div className="relative flex items-center">
@@ -96,7 +110,7 @@ export default function RegisterPage() {
                   required
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="e.g. Ramesh Patel"
+                  placeholder={t('fullNamePlaceholder')}
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-surface text-text border border-border focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -104,7 +118,7 @@ export default function RegisterPage() {
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-text font-semibold flex items-center gap-1" htmlFor="mobile-number">
-                <span>Mobile Number</span>
+                <span>{t('mobileNumber')}</span>
                 <span className="text-primary font-bold">*</span>
               </label>
               <div className="relative flex items-stretch">
@@ -121,7 +135,7 @@ export default function RegisterPage() {
                   required
                   value={mobile}
                   onChange={e => setMobile(e.target.value)}
-                  placeholder="10-digit mobile number"
+                  placeholder={t('mobileOnlyPlaceholder')}
                   className="w-full h-12 px-3.5 rounded-r-lg bg-surface text-text border border-border focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -129,7 +143,7 @@ export default function RegisterPage() {
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-text font-semibold flex items-center gap-1" htmlFor="farm-location">
-                <span>Farm Location / Village</span>
+                <span>{t('farmLocation')}</span>
                 <span className="text-primary font-bold">*</span>
               </label>
               <div className="relative flex items-center">
@@ -140,7 +154,7 @@ export default function RegisterPage() {
                   required
                   value={location}
                   onChange={e => setLocation(e.target.value)}
-                  placeholder="Village / District, State"
+                  placeholder={t('farmLocationPlaceholder')}
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-surface text-text border border-border focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -148,7 +162,7 @@ export default function RegisterPage() {
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-text font-semibold flex items-center gap-1" htmlFor="password-input">
-                <span>Password</span>
+                <span>{t('passwordSimple')}</span>
                 <span className="text-primary font-bold">*</span>
               </label>
               <div className="relative flex items-center">
@@ -159,7 +173,7 @@ export default function RegisterPage() {
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="Create a password"
+                  placeholder={t('createPassword')}
                   className="w-full h-12 pl-11 pr-12 rounded-lg bg-surface text-text border border-border focus:outline-none focus:border-primary transition-colors"
                 />
                 <button 
@@ -190,17 +204,17 @@ export default function RegisterPage() {
               disabled={isSubmitting}
               className="mt-2 w-full h-[52px] bg-primary text-surface-bright font-semibold text-base rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? (
-                <>
-                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
-                  <span>Securing your vault...</span>
-                </>
-              ) : (
-                <>
-                  <span>Create farm vault</span>
-                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
-                </>
-              )}
+                {isSubmitting ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                    <span>{t('securingVault')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t('createFarmVault')}</span>
+                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                  </>
+                )}
             </button>
           </form>
 
@@ -213,7 +227,7 @@ export default function RegisterPage() {
               className="mt-2 w-full h-[52px] bg-tertiary-container text-tertiary font-semibold text-base rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.99]"
             >
               <span className="material-symbols-outlined text-lg">science</span>
-              <span>Use Demo Account</span>
+              <span>{t('useDemoAccount')}</span>
             </button>
           )}
 
@@ -222,9 +236,9 @@ export default function RegisterPage() {
               verified_user
             </span>
             <div className="flex flex-col">
-              <span className="text-sm text-secondary font-semibold">Farmer Owned &amp; Protected</span>
+              <span className="text-sm text-secondary font-semibold">{t('farmerOwned')}</span>
               <span className="text-sm text-text-muted leading-snug">
-                Your farm records remain private to you and your family. Never shared with brokers or marketing agencies.
+                {t('farmerOwnedDesc')}
               </span>
             </div>
           </div>
@@ -232,13 +246,13 @@ export default function RegisterPage() {
 
         <div className="mt-6 flex flex-col items-center justify-center text-center gap-2">
           <Link href="/login" className="inline-flex items-center gap-1.5 py-3 px-4 text-base text-text hover:text-primary transition-colors">
-            <span className="text-text-muted">Already have a vault?</span>
-            <span className="text-primary font-semibold underline underline-offset-4">Sign in</span>
+            <span className="text-text-muted">{t('alreadyHaveVault')}</span>
+            <span className="text-primary font-semibold underline underline-offset-4">{t('signIn')}</span>
           </Link>
           
           <div className="inline-flex items-center gap-1 text-text-muted text-xs opacity-80 mt-1">
             <span className="material-symbols-outlined text-sm">wb_sunny</span>
-            <span>Optimized for clear outdoor viewing</span>
+            <span>{t('optimizedOutdoor')}</span>
           </div>
         </div>
       </div>

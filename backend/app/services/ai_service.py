@@ -76,7 +76,7 @@ def _build_context(source_records: List[Dict[str, Any]]) -> str:
 
 # ─── LLM Caller ───────────────────────────────────────────────────────────────
 
-def _call_llm(context: str, user_query: str) -> str:
+def _call_llm(context: str, user_query: str, original_query: Optional[str] = None) -> str:
     """
     Call Groq LLM via LangChain.
     Falls back to a rule-based answer if Groq key is missing.
@@ -99,19 +99,25 @@ def _call_llm(context: str, user_query: str) -> str:
             max_tokens=1024,
         )
 
+        system_content = (
+            "You are KisanVault, an AI farm assistant. "
+            "Answer questions using ONLY the provided farm records. "
+            "Be specific, factual, and helpful. "
+            "Always mention the field name, crop, dates, and quantities when available. "
+            "If the records do not contain enough information, say so clearly. "
+            "IMPORTANT: Respond in a friendly, conversational, and natural paragraph format. "
+            "Do NOT use bullet points or structured lists to regurgitate the record details. "
+            "Do NOT use markdown formatting like bolding (**), italics, or asterisks. Respond in plain text only."
+        )
+        if original_query:
+            system_content += f"\n\nCRITICAL INSTRUCTION: The user originally asked their question in a native language: '{original_query}'. YOU MUST DETECT THIS NATIVE LANGUAGE AND FORMULATE YOUR ENTIRE RESPONSE IN THAT EXACT SAME LANGUAGE. DO NOT RESPOND IN ENGLISH IF THE ORIGINAL QUERY WAS NOT IN ENGLISH."
+
         messages = [
-            SystemMessage(content=(
-                "You are KisanVault, an AI farm assistant. "
-                "Answer questions using ONLY the provided farm records. "
-                "Be specific, factual, and helpful. "
-                "Always mention the field name, crop, dates, and quantities when available. "
-                "If the records do not contain enough information, say so clearly. "
-                "IMPORTANT: Respond in a friendly, conversational, and natural paragraph format. "
-                "Do NOT use bullet points or structured lists to regurgitate the record details."
-            )),
+            SystemMessage(content=system_content),
             HumanMessage(content=(
                 f"Farm Records:\n{context}\n\n"
-                f"Question: {user_query}"
+                f"Question (English Translated for context): {user_query}\n"
+                f"{f'Original Question: {original_query}' if original_query else ''}"
             )),
         ]
 
@@ -132,6 +138,7 @@ def handle_query(
     user_query: str,
     db: Session,
     user_id: str,
+    original_query: Optional[str] = None,
     n_results: int = 5,
 ) -> Dict[str, Any]:
     """
@@ -169,10 +176,10 @@ def handle_query(
     context = _build_context(non_null) if non_null else "No full record details available."
 
     # Step 5: Call LLM
-    answer = _call_llm(context, user_query)
+    answer = _call_llm(context, user_query, original_query)
 
     return {
         "answer": answer,
         "source_records": source_records,
-        "query": user_query,
+        "query": original_query if original_query else user_query,
     }

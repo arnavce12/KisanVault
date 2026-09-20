@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { recordsService } from '@/services/records';
 import { Button } from '@/components/ui/Button';
+import { useLanguage } from '@/context/LanguageContext';
 
 export function AddRecordForm() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [fields, setFields] = useState([]);
   const [crops, setCrops] = useState([]);
@@ -180,19 +182,19 @@ export function AddRecordForm() {
 
       {/* SECTION 1: Basic Info */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-newsreader font-semibold border-b border-border pb-2">Section 1: Basic Info</h2>
+        <h2 className="text-xl font-newsreader font-semibold border-b border-border pb-2">{t('basicInformation')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold">Field Name *</label>
+            <label className="text-sm font-semibold">{t('field')} *</label>
             <select 
               value={fieldName} 
               onChange={(e) => setFieldName(e.target.value)}
               className="bg-background border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
             >
-              <option value="" disabled>Select a field</option>
+              <option value="" disabled>{t('selectField')}</option>
               {fields.map(f => <option key={f} value={f}>{f}</option>)}
-              <option value="NEW">+ Add New Field</option>
+              <option value="NEW">+ {t('addNewField')}</option>
             </select>
             {fieldName === 'NEW' && (
               <input 
@@ -206,13 +208,13 @@ export function AddRecordForm() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold">Season *</label>
+            <label className="text-sm font-semibold">{t('season')} *</label>
             <select 
               value={season} 
               onChange={(e) => setSeason(e.target.value)}
               className="bg-background border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
             >
-              <option value="" disabled>Select season</option>
+              <option value="" disabled>{t('selectSeason')}</option>
               <option value="Kharif 2024">Kharif 2024</option>
               <option value="Rabi 2024">Rabi 2024</option>
               <option value="Zaid 2024">Zaid 2024</option>
@@ -230,15 +232,15 @@ export function AddRecordForm() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold">Crop Name *</label>
+            <label className="text-sm font-semibold">{t('crop')} *</label>
             <select 
               value={cropName} 
               onChange={(e) => setCropName(e.target.value)}
               className="bg-background border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
             >
-              <option value="" disabled>Select a crop</option>
+              <option value="" disabled>{t('selectCrop')}</option>
               {crops.map(c => <option key={c} value={c}>{c}</option>)}
-              <option value="NEW">+ Add New Crop</option>
+              <option value="NEW">+ {t('addNewCrop')}</option>
             </select>
             {cropName === 'NEW' && (
               <input 
@@ -252,7 +254,7 @@ export function AddRecordForm() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold">Date *</label>
+            <label className="text-sm font-semibold">{t('date')} *</label>
             <input 
               type="date" 
               value={date} 
@@ -267,7 +269,7 @@ export function AddRecordForm() {
 
       {/* SECTION 2: Record Type Selection */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-newsreader font-semibold border-b border-border pb-2">Section 2: Record Type</h2>
+        <h2 className="text-xl font-newsreader font-semibold border-b border-border pb-2">{t('whatTypeOfRecord')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           
           <button 
@@ -275,7 +277,7 @@ export function AddRecordForm() {
             onClick={() => setRecordType('activity')}
             className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${recordType === 'activity' ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-primary/30 bg-surface-bright'}`}
           >
-            <span className="text-4xl mb-2">🌱</span>
+            <span className="material-symbols-outlined text-[40px] mb-2">psychiatry</span>
             <span className="font-semibold text-lg">Activity</span>
           </button>
           
@@ -284,7 +286,7 @@ export function AddRecordForm() {
             onClick={() => setRecordType('expense')}
             className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${recordType === 'expense' ? 'border-error bg-error/5 text-error' : 'border-border hover:border-error/30 bg-surface-bright'}`}
           >
-            <span className="text-4xl mb-2">💰</span>
+            <span className="material-symbols-outlined text-[40px] mb-2">account_balance_wallet</span>
             <span className="font-semibold text-lg">Expense</span>
           </button>
           
@@ -293,7 +295,7 @@ export function AddRecordForm() {
             onClick={() => setRecordType('harvest')}
             className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${recordType === 'harvest' ? 'border-secondary bg-secondary/5 text-secondary' : 'border-border hover:border-secondary/30 bg-surface-bright'}`}
           >
-            <span className="text-4xl mb-2">🌾</span>
+            <span className="material-symbols-outlined text-[40px] mb-2">agriculture</span>
             <span className="font-semibold text-lg">Harvest</span>
           </button>
 
@@ -304,7 +306,7 @@ export function AddRecordForm() {
       {recordType && (
         <section className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <h2 className="text-xl font-newsreader font-semibold border-b border-border pb-2">
-            Section 3: {recordType === 'activity' ? 'Activity' : recordType === 'expense' ? 'Expense' : 'Harvest'} Details
+            {recordType === 'activity' ? t('activityDetails') : recordType === 'expense' ? t('expenseDetails') : t('harvestDetails')}
           </h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -329,7 +331,7 @@ export function AddRecordForm() {
                 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold">Quantity</label>
-                  <input type="number" step="0.01" value={activityQuantity} onChange={(e) => setActivityQuantity(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
+                  <input type="number" min="1" step="0.01" value={activityQuantity} onChange={(e) => setActivityQuantity(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
                 </div>
                 
                 <div className="flex flex-col gap-1">
@@ -345,7 +347,7 @@ export function AddRecordForm() {
                 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold">Cost (₹)</label>
-                  <input type="number" step="0.01" value={activityCost} onChange={(e) => setActivityCost(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
+                  <input type="number" min="1" step="0.01" value={activityCost} onChange={(e) => setActivityCost(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
                 </div>
               </>
             )}
@@ -367,7 +369,7 @@ export function AddRecordForm() {
                 
                 <div className="flex flex-col gap-1 sm:col-span-2">
                   <label className="text-sm font-semibold">Amount (₹) *</label>
-                  <input type="number" step="0.01" required value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
+                  <input type="number" min="1" step="0.01" required value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
                 </div>
                 
                 <div className="flex flex-col gap-1 sm:col-span-2">
@@ -381,7 +383,7 @@ export function AddRecordForm() {
               <>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold">Harvest Quantity *</label>
-                  <input type="number" step="0.01" required value={harvestQuantity} onChange={(e) => setHarvestQuantity(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
+                  <input type="number" min="1" step="0.01" required value={harvestQuantity} onChange={(e) => setHarvestQuantity(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
                 </div>
                 
                 <div className="flex flex-col gap-1">
@@ -395,7 +397,7 @@ export function AddRecordForm() {
                 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold">Selling Price per Unit (₹)</label>
-                  <input type="number" step="0.01" value={harvestSellingPrice} onChange={(e) => setHarvestSellingPrice(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
+                  <input type="number" min="1" step="0.01" value={harvestSellingPrice} onChange={(e) => setHarvestSellingPrice(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2" />
                 </div>
                 
                 <div className="flex flex-col gap-1">
@@ -414,7 +416,7 @@ export function AddRecordForm() {
 
           <div className="mt-4 flex justify-end">
             <Button type="submit" disabled={loading} icon={loading ? "hourglass_empty" : "save"}>
-              {loading ? "Saving..." : "Save Record"}
+              {loading ? t('saving') : t('saveRecord')}
             </Button>
           </div>
         </section>

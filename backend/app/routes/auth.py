@@ -75,7 +75,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered.",
+            detail="An account with this mobile number or email is already registered.",
         )
     user = User(
         name=payload.name,

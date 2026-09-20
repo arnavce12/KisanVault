@@ -50,7 +50,10 @@ export async function apiClient(endpoint, { method = 'GET', body, headers = {} }
           window.dispatchEvent(new Event('unauthorized'));
         }
       }
-      throw { status: response.status, message: data.message || 'API Error', ...data };
+      const apiError = new Error(data.message || 'API Error');
+      apiError.status = response.status;
+      apiError.data = data;
+      throw apiError;
     }
     return data;
   } catch (error) {

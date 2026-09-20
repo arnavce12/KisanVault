@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function LoginPage() {
   const { user, login, demoLogin, isLoading: authLoading } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
   const router = useRouter();
   
   const [identifier, setIdentifier] = useState('');
@@ -45,7 +47,19 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="w-full min-h-screen bg-surface">
+    <main className="w-full min-h-screen bg-surface relative">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-1 border border-border rounded-lg bg-surface-bright/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+        <span className="material-symbols-outlined text-[18px] text-text-muted">language</span>
+        <select 
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="bg-transparent text-sm font-semibold text-text focus:outline-none cursor-pointer appearance-none pr-1"
+        >
+          <option value="en">English</option>
+          <option value="hi">हिंदी</option>
+          <option value="mr">मराठी</option>
+        </select>
+      </div>
       <div className="w-full min-h-[calc(100vh-2rem)] flex flex-col lg:flex-row items-stretch p-0 sm:p-6 lg:p-8 gap-0 sm:gap-6 lg:gap-8">
         
         <section className="hidden lg:flex relative w-full lg:w-1/2 min-h-[740px] rounded-3xl overflow-hidden shadow-sm flex-col justify-between p-10 text-surface-bright">
@@ -57,7 +71,7 @@ export default function LoginPage() {
           <div className="relative z-10 flex items-center justify-between">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/90 text-primary shadow-sm backdrop-blur-sm">
               <span className="material-symbols-outlined text-[18px] text-primary" style={{fontVariationSettings: "'FILL' 1"}}>verified_user</span>
-              <span className="font-sourcesans text-xs tracking-wide uppercase font-semibold">Farmer-Owned &amp; Protected</span>
+              <span className="font-sourcesans text-xs tracking-wide uppercase font-semibold">{t('farmerOwned')}</span>
             </div>
             <div className="flex items-center gap-1.5 text-surface-container/90 text-xs bg-primary/40 backdrop-blur-sm px-3 py-1 rounded-full font-semibold">
               <span className="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
@@ -112,13 +126,13 @@ export default function LoginPage() {
             {/* Section Intro */}
             <div className="mb-6 lg:mb-8">
               <span className="inline-block text-xs uppercase tracking-widest text-secondary font-semibold mb-2">
-                Welcome Back
+                {t('welcomeBackAuth')}
               </span>
               <h1 className="font-newsreader text-3xl lg:text-4xl text-text mb-3 tracking-tight font-semibold">
-                Your farm history is waiting.
+                {t('farmHistoryWaiting')}
               </h1>
               <p className="text-base text-text-muted leading-relaxed">
-                Sign in to access your fields, records, harvests, and seasonal insights.
+                {t('signInDesc')}
               </p>
             </div>
 
@@ -126,8 +140,8 @@ export default function LoginPage() {
             <form className="flex flex-col gap-5 lg:gap-6" onSubmit={handleLogin}>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm text-text font-semibold flex items-center justify-between" htmlFor="identifier">
-                  <span>Mobile number or Email</span>
-                  <span className="text-sm text-text-muted font-normal hidden lg:inline">Primary contact</span>
+                  <span>{t('mobileOrEmail')}</span>
+                  <span className="text-sm text-text-muted font-normal hidden lg:inline">{t('primaryContact')}</span>
                 </label>
                 <div className="relative flex items-center">
                   <span className="material-symbols-outlined absolute left-4 text-text-muted text-[22px] pointer-events-none">mail</span>
@@ -137,7 +151,7 @@ export default function LoginPage() {
                     required 
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
-                    placeholder="farmer@example.com or 10-digit mobile"
+                    placeholder={t('mobilePlaceholder')}
                     className="w-full h-12 lg:h-[52px] pl-12 pr-4 bg-surface-bright lg:bg-surface text-text rounded-xl shadow-sm border border-border focus:outline-none focus:border-primary transition-all placeholder:text-text-muted/70" 
                   />
                 </div>
@@ -145,9 +159,9 @@ export default function LoginPage() {
 
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-text font-semibold" htmlFor="password">Password or PIN</label>
+                  <label className="text-sm text-text font-semibold" htmlFor="password">{t('passwordOrPin')}</label>
                   <button type="button" className="text-sm text-secondary hover:text-primary transition-colors font-semibold">
-                    Forgot password?
+                    {t('forgotPassword')}
                   </button>
                 </div>
                 <div className="relative flex items-center">
@@ -158,7 +172,7 @@ export default function LoginPage() {
                     required 
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Enter your security passkey"
+                    placeholder={t('passwordPlaceholder')}
                     className="w-full h-12 lg:h-[52px] pl-12 pr-12 bg-surface-bright lg:bg-surface text-text rounded-xl shadow-sm border border-border focus:outline-none focus:border-primary transition-all placeholder:text-text-muted/70" 
                   />
                   <button 
@@ -192,11 +206,11 @@ export default function LoginPage() {
                 {isSubmitting ? (
                   <>
                     <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
-                    <span>Opening vault...</span>
+                    <span>{t('openingVault')}</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign in</span>
+                    <span>{t('signIn')}</span>
                     <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                   </>
                 )}
@@ -204,7 +218,7 @@ export default function LoginPage() {
 
               <div className="flex items-center justify-center gap-2 py-1 text-text-muted text-sm text-center">
                 <span className="material-symbols-outlined text-[18px] text-secondary">lock</span>
-                <span>Encrypted &amp; safe. Built for simplicity.</span>
+                <span>{t('encryptedSafe')}</span>
               </div>
             </form>
 
@@ -217,18 +231,18 @@ export default function LoginPage() {
                 className="w-full h-12 lg:h-[52px] mt-4 rounded-xl bg-tertiary-container text-tertiary font-semibold text-base flex items-center justify-center gap-2.5 shadow-sm hover:opacity-95 transition-all"
               >
                 <span className="material-symbols-outlined text-[20px]">science</span>
-                <span>Use Demo Account</span>
+                <span>{t('useDemoAccount')}</span>
               </button>
             )}
 
             <div className="mt-8 pt-6 border-t border-border flex flex-col lg:flex-row items-center justify-between gap-3 text-center lg:text-left">
               <div className="flex flex-col">
-                <span className="text-sm text-text font-semibold">New to KisanVault?</span>
-                <span className="text-sm text-text-muted">Digitize your farm books in 2 minutes</span>
+                <span className="text-sm text-text font-semibold">{t('newToKisanVault')}</span>
+                <span className="text-sm text-text-muted">{t('digitizeIn2Mins')}</span>
               </div>
               <Link href="/register">
                 <button className="h-10 px-4 rounded-lg bg-surface-container text-primary text-sm font-semibold shadow-sm hover:bg-border transition-colors">
-                  Create an account
+                  {t('createAccount')}
                 </button>
               </Link>
             </div>

@@ -62,10 +62,8 @@ export function AuthProvider({ children }) {
     if (process.env.NEXT_PUBLIC_DEMO_MODE !== 'true') {
       throw new Error("Demo mode is disabled in this environment.");
     }
-    const demoToken = 'demo_dev_token_123';
-    localStorage.setItem('kisanvault_jwt', demoToken);
-    setUser({ id: 'demo123', name: 'Demo Farmer' });
-    router.push('/dashboard');
+    // Perform a real login for the seeded demo user
+    await login('demo@kisanvault.com', 'demo1234');
   };
 
   const logout = () => {

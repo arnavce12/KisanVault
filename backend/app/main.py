@@ -15,7 +15,7 @@ from app.database import engine, Base
 import app.models  # noqa: F401
 
 # Import routers
-from app.routes import auth, records, search, summary
+from app.routes import auth, records, search, summary, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +65,7 @@ app.include_router(auth.router)
 app.include_router(records.router)
 app.include_router(search.router)
 app.include_router(summary.router)
+app.include_router(voice.router)
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { Newsreader, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 
 const newsreader = Newsreader({
   subsets: ['latin'],
@@ -27,7 +28,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased font-sourcesans bg-background text-text">
         <AuthProvider>
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/Card';
 
 export function SummaryCard({ title, value, icon, trend, highlight = false }) {
   return (
-    <Card className={`flex flex-col gap-2 ${highlight ? 'bg-primary text-surface-bright border-transparent' : ''}`}>
+    <Card className={`flex flex-col gap-2 ${highlight ? '!bg-primary text-surface-bright !border-primary shadow-md' : ''}`}>
       <div className="flex items-center justify-between">
         <span className={`text-sm font-semibold ${highlight ? 'text-primary-container' : 'text-text-muted'}`}>{title}</span>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${highlight ? 'bg-surface-bright/20' : 'bg-surface-container'}`}>

@@ -47,6 +47,7 @@ class UnifiedRecordResponse(BaseModel):
 
 class SearchQuery(BaseModel):
     query: str
+    original_query: Optional[str] = None
     n_results: Optional[int] = Field(default=5, ge=1, le=20)
 
 
