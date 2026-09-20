@@ -40,7 +40,6 @@ export function AuthProvider({ children }) {
     const response = await authService.login({ identifier, password });
     if (response.token) {
       localStorage.setItem('kisanvault_jwt', response.token);
-      // Re-fetch user or assume response includes user
       setUser(response.user || { id: 'temp', name: 'Farmer' });
       router.push('/dashboard');
     }
@@ -57,6 +56,16 @@ export function AuthProvider({ children }) {
     return response;
   };
 
+  const demoLogin = async () => {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE !== 'true') {
+      throw new Error("Demo mode is disabled in this environment.");
+    }
+    const demoToken = 'demo_dev_token_123';
+    localStorage.setItem('kisanvault_jwt', demoToken);
+    setUser({ id: 'demo123', name: 'Demo Farmer' });
+    router.push('/dashboard');
+  };
+
   const logout = () => {
     localStorage.removeItem('kisanvault_jwt');
     setUser(null);
@@ -64,7 +73,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, demoLogin }}>
       {children}
     </AuthContext.Provider>
   );

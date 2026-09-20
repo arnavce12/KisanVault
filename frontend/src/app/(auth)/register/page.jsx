@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function RegisterPage() {
-  const { user, register, isLoading: authLoading } = useAuth();
+  const { user, register, demoLogin, isLoading: authLoading } = useAuth();
   const router = useRouter();
   
   const [name, setName] = useState('');
@@ -51,7 +51,7 @@ export default function RegisterPage() {
     <main className="min-h-screen flex flex-col relative w-full bg-surface pb-8">
       {/* Visual Header */}
       <div className="relative w-full h-48 overflow-hidden">
-        <img alt="Rural farmland at sunrise" className="absolute inset-0 w-full h-full object-cover object-center" src="/assets/kisanvault_mobile_register/screen.png" />
+        <img alt="Rural farmland at sunrise" className="absolute inset-0 w-full h-full object-cover object-center" src="/assets/authentic_indian_agricultural_landscape_scene_in_natural_warm_morning_daylight/screen.png" />
         <div className="absolute inset-0 bg-gradient-to-b from-primary/30 via-surface/75 to-surface"></div>
         
         <div className="relative z-10 pt-4 px-4 flex items-center justify-between">
@@ -203,6 +203,19 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+            <button 
+              type="button" 
+              onClick={async () => {
+                try { await demoLogin(); } catch(e) {}
+              }}
+              className="mt-2 w-full h-[52px] bg-tertiary-container text-tertiary font-semibold text-base rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.99]"
+            >
+              <span className="material-symbols-outlined text-lg">science</span>
+              <span>Use Demo Account</span>
+            </button>
+          )}
 
           <div className="bg-surface-container p-3.5 rounded-lg flex items-start gap-3">
             <span className="material-symbols-outlined text-secondary text-2xl shrink-0" style={{fontVariationSettings: "'FILL' 1"}}>
