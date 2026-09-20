@@ -21,8 +21,9 @@ class Settings(BaseSettings):
     # AI / LLM
     GROQ_API_KEY: str = ""
 
-    # ChromaDB
-    CHROMA_PATH: str = "./vector_store/chroma_db"
+    # Pinecone
+    PINECONE_API_KEY: str = ""
+    PINECONE_INDEX_NAME: str = "kisanvault"
 
     # Embedding model
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"

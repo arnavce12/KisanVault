@@ -24,7 +24,7 @@ def natural_language_search(
     """
     Natural language query endpoint.
     - Embeds the query with BAAI/bge-small-en-v1.5
-    - Searches ChromaDB for relevant farm records
+    - Searches Pinecone for relevant farm records
     - Fetches full records from PostgreSQL
     - Calls Groq LLM to generate an answer
     - Returns: answer + source_records (evidence traceability)

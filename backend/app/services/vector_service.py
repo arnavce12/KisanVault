@@ -1,6 +1,6 @@
 """
 vector_service.py
-Handles ChromaDB embedding and retrieval using BAAI/bge-small-en-v1.5.
+Handles Pinecone embedding and retrieval using BAAI/bge-small-en-v1.5.
 """
 
 import os
@@ -13,12 +13,10 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_chroma_client = None
-_collection = None
+_pinecone_client = None
+_pinecone_index = None
 _embedding_model: Optional[SentenceTransformer] = None
-_chroma_available = None
-
-COLLECTION_NAME = "farm_records"
+_pinecone_available = None
 
 
 def _get_embedding_model() -> SentenceTransformer:
@@ -29,27 +27,26 @@ def _get_embedding_model() -> SentenceTransformer:
     return _embedding_model
 
 
-def _get_chroma_collection():
-    global _chroma_client, _collection, _chroma_available
-    if _chroma_available is False:
+def _get_pinecone_index():
+    global _pinecone_client, _pinecone_index, _pinecone_available
+    if _pinecone_available is False:
         return None
-    if _collection is not None:
-        return _collection
+    if _pinecone_index is not None:
+        return _pinecone_index
     try:
-        import chromadb
-        os.makedirs(settings.CHROMA_PATH, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PATH)
-        _collection = _chroma_client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
-        _chroma_available = True
-        logger.info(f"ChromaDB collection '{COLLECTION_NAME}' ready.")
+        from pinecone import Pinecone
+        if not settings.PINECONE_API_KEY:
+            raise ValueError("PINECONE_API_KEY is not set.")
+        
+        _pinecone_client = Pinecone(api_key=settings.PINECONE_API_KEY)
+        _pinecone_index = _pinecone_client.Index(settings.PINECONE_INDEX_NAME)
+        _pinecone_available = True
+        logger.info(f"Pinecone index '{settings.PINECONE_INDEX_NAME}' ready.")
     except Exception as e:
-        _chroma_available = False
-        logger.warning(f"ChromaDB unavailable — vector search disabled: {e}")
+        _pinecone_available = False
+        logger.warning(f"Pinecone unavailable — vector search disabled: {e}")
         return None
-    return _collection
+    return _pinecone_index
 
 
 def _record_to_text(record: Dict[str, Any], table: str) -> str:
@@ -106,13 +103,13 @@ def embed_and_store(
     user_id: str,
 ) -> None:
     """
-    Embed a farm record and store it in ChromaDB.
+    Embed a farm record and store it in Pinecone.
     The authenticated user's ID is stored as metadata for tenant isolation.
     """
     try:
-        collection = _get_chroma_collection()
-        if collection is None:
-            logger.warning(f"Skipping embed for {record_id} — ChromaDB unavailable.")
+        index = _get_pinecone_index()
+        if index is None:
+            logger.warning(f"Skipping embed for {record_id} — Pinecone unavailable.")
             return
         model = _get_embedding_model()
 
@@ -123,17 +120,21 @@ def embed_and_store(
 
         embedding = model.encode(text).tolist()
 
-        collection.upsert(
-            documents=[text],
-            embeddings=[embedding],
-            metadatas=[{
-                "record_id": record_id,
-                "table": table,
-                "user_id": user_id,
-            }],
-            ids=[record_id],
+        index.upsert(
+            vectors=[
+                {
+                    "id": record_id,
+                    "values": embedding,
+                    "metadata": {
+                        "record_id": record_id,
+                        "table": table,
+                        "user_id": user_id,
+                        "text": text,
+                    }
+                }
+            ]
         )
-        logger.info(f"Embedded record {record_id} ({table}) into ChromaDB.")
+        logger.info(f"Embedded record {record_id} ({table}) into Pinecone.")
     except Exception as e:
         logger.error(f"Failed to embed record {record_id}: {e}")
 
@@ -144,76 +145,74 @@ def query_similar(
     where: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Search ChromaDB for records semantically similar to query_text.
-
+    Search Pinecone for records semantically similar to query_text.
     The where filter is used for tenant scoping.
     """
     try:
-        collection = _get_chroma_collection()
-        if collection is None:
+        index = _get_pinecone_index()
+        if index is None:
             return []
 
         model = _get_embedding_model()
         query_embedding = model.encode(query_text).tolist()
 
-        collection_size = collection.count()
-        if collection_size == 0:
-            return []
-
         kwargs = {
-            "query_embeddings": [query_embedding],
-            "n_results": min(n_results, collection_size),
-            "include": ["documents", "metadatas", "distances"],
+            "vector": query_embedding,
+            "top_k": n_results,
+            "include_metadata": True,
         }
         if where:
-            kwargs["where"] = where
+            # Translate simple equality to explicit $eq for Pinecone filter
+            kwargs["filter"] = {k: {"$eq": v} for k, v in where.items()}
 
-        results = collection.query(**kwargs)
+        results = index.query(**kwargs)
 
         hits = []
-        if results and results.get("ids") and results["ids"][0]:
-            for i, doc_id in enumerate(results["ids"][0]):
-                metadata = results["metadatas"][0][i] or {}
+        if results and results.matches:
+            for match in results.matches:
+                metadata = match.metadata or {}
                 hits.append({
-                    "record_id": metadata.get("record_id", doc_id),
+                    "record_id": metadata.get("record_id", match.id),
                     "table": metadata.get("table", "unknown"),
-                    "text_preview": results["documents"][0][i][:300],
-                    "distance": results["distances"][0][i],
+                    "text_preview": metadata.get("text", "")[:300],
+                    "distance": match.score,
                 })
         return hits
     except Exception as e:
-        logger.error(f"ChromaDB query failed: {e}")
+        logger.error(f"Pinecone query failed: {e}")
         return []
 
 
 def delete_record(record_id: str, user_id: Optional[str] = None) -> None:
-    """Remove a record from ChromaDB when deleted from the database."""
+    """Remove a record from Pinecone when deleted from the database."""
     try:
-        collection = _get_chroma_collection()
-        if collection is None:
+        index = _get_pinecone_index()
+        if index is None:
             return
 
         if user_id:
-            collection.delete(
-                where={
-                    "$and": [
-                        {"record_id": record_id},
-                        {"user_id": user_id},
-                    ]
+            index.delete(
+                filter={
+                    "record_id": {"$eq": record_id},
+                    "user_id": {"$eq": user_id},
                 }
             )
         else:
-            collection.delete(ids=[record_id])
+            index.delete(ids=[record_id])
 
-        logger.info(f"Deleted record {record_id} from ChromaDB.")
+        logger.info(f"Deleted record {record_id} from Pinecone.")
     except Exception as e:
-        logger.warning(f"Could not delete {record_id} from ChromaDB: {e}")
+        logger.warning(f"Could not delete {record_id} from Pinecone: {e}")
 
 
 def collection_count() -> int:
-    """Return number of documents in ChromaDB."""
+    """Return number of documents in Pinecone index."""
     try:
-        collection = _get_chroma_collection()
-        return collection.count() if collection is not None else 0
-    except Exception:
+        index = _get_pinecone_index()
+        if index is not None:
+            stats = index.describe_index_stats()
+            return stats.total_vector_count
+        return 0
+    except Exception as e:
+        logger.warning(f"Could not get collection count from Pinecone: {e}")
         return 0

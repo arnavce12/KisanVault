@@ -80,5 +80,5 @@ def health():
     from app.services.vector_service import collection_count
     return {
         "status": "healthy",
-        "chroma_documents": collection_count(),
+        "vector_documents": collection_count(),
     }

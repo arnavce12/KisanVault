@@ -4,7 +4,7 @@ seed_data.py
 Seeds the database with the demo data for the Unified Farm Record Platform:
   - Demo Farmer user
   - Unified farm_records
-  - All records also embedded into ChromaDB
+  - All records also embedded into Pinecone
 
 Usage:
   cd backend
@@ -70,7 +70,7 @@ def seed():
         db.commit()
         print(f"Created {len(records)} farm records")
 
-        print("\nEmbedding records into ChromaDB...")
+        print("\nEmbedding records into Pinecone...")
         for r in records:
             # Reconstruct text like in records.py
             details = {}
