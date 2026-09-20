@@ -24,9 +24,8 @@ class Settings(BaseSettings):
     # Pinecone
     PINECONE_API_KEY: str = ""
     PINECONE_INDEX_NAME: str = "kisanvault"
-
-    # Embedding model
-    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    PINECONE_EMBEDDING_MODEL: str = "llama-text-embed-v2"
+    PINECONE_EMBEDDING_DIMENSION: int = 384
 
     # CORS
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
