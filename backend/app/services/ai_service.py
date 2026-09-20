@@ -10,22 +10,33 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# ─── Record Fetcher ───────────────────────────────────────────────────────────
 
-def _fetch_record(db: Session, record_id: str, table: str) -> Optional[Dict[str, Any]]:
-    """Fetch a full record from PostgreSQL by ID (from unified farm_records table)."""
+def _fetch_record(
+    db: Session,
+    record_id: str,
+    table: str,
+    user_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Fetch a full record by ID, strictly scoped to the authenticated user."""
     try:
         uid = UUID(record_id)
-    except Exception:
+        owner_id = UUID(user_id)
+    except (ValueError, TypeError, AttributeError):
         return None
 
-    # Even if table is historically something else, we only have FarmRecord now
-    # Wait, existing data in ChromaDB might have table "activities", etc.
-    # The new table is farm_records. Since the IDs are UUIDs, we just search FarmRecord
-    record = db.query(FarmRecord).filter(FarmRecord.id == uid).first()
+    # Defense in depth: vector-search results are untrusted identifiers.
+    # Always enforce tenant ownership again at the PostgreSQL boundary.
+    record = (
+        db.query(FarmRecord)
+        .filter(
+            FarmRecord.id == uid,
+            FarmRecord.user_id == owner_id,
+        )
+        .first()
+    )
     if not record:
         return None
-        
+
     res = {
         "id": str(record.id),
         "table": "farm_records",
@@ -35,7 +46,7 @@ def _fetch_record(db: Session, record_id: str, table: str) -> Optional[Dict[str,
         "date": str(record.date),
         "record_type": record.record_type,
     }
-    
+
     if record.record_type == "activity":
         res.update({
             "activity_type": record.activity_type,
@@ -58,7 +69,7 @@ def _fetch_record(db: Session, record_id: str, table: str) -> Optional[Dict[str,
             "selling_price": record.selling_price,
             "total_revenue": record.total_revenue,
         })
-        
+
     return res
 
 
@@ -74,15 +85,9 @@ def _build_context(source_records: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-# ─── LLM Caller ───────────────────────────────────────────────────────────────
-
 def _call_llm(context: str, user_query: str, original_query: Optional[str] = None) -> str:
-    """
-    Call Groq LLM via LangChain.
-    Falls back to a rule-based answer if Groq key is missing.
-    """
+    """Call Groq LLM via LangChain, with graceful fallback."""
     if not settings.GROQ_API_KEY:
-        # Graceful degradation: return structured context without LLM
         return (
             f"[AI Summary not available — GROQ_API_KEY not set]\n\n"
             f"Based on your farm records, here is the relevant information:\n\n{context}"
@@ -110,7 +115,11 @@ def _call_llm(context: str, user_query: str, original_query: Optional[str] = Non
             "Do NOT use markdown formatting like bolding (**), italics, or asterisks. Respond in plain text only."
         )
         if original_query:
-            system_content += f"\n\nCRITICAL INSTRUCTION: The user originally asked their question in a native language: '{original_query}'. YOU MUST DETECT THIS NATIVE LANGUAGE AND FORMULATE YOUR ENTIRE RESPONSE IN THAT EXACT SAME LANGUAGE. DO NOT RESPOND IN ENGLISH IF THE ORIGINAL QUERY WAS NOT IN ENGLISH."
+            system_content += (
+                f"\n\nCRITICAL INSTRUCTION: The user originally asked their question in a native language: "
+                f"'{original_query}'. YOU MUST DETECT THIS NATIVE LANGUAGE AND FORMULATE YOUR ENTIRE RESPONSE "
+                "IN THAT EXACT SAME LANGUAGE. DO NOT RESPOND IN ENGLISH IF THE ORIGINAL QUERY WAS NOT IN ENGLISH."
+            )
 
         messages = [
             SystemMessage(content=system_content),
@@ -132,8 +141,6 @@ def _call_llm(context: str, user_query: str, original_query: Optional[str] = Non
         )
 
 
-# ─── Main Query Handler ───────────────────────────────────────────────────────
-
 def handle_query(
     user_query: str,
     db: Session,
@@ -142,15 +149,18 @@ def handle_query(
     n_results: int = 5,
 ) -> Dict[str, Any]:
     """
-    Full RAG pipeline:
-      1. Embed query → search ChromaDB
-      2. Fetch full records from PostgreSQL
-      3. Build context
-      4. Call Groq LLM
-      5. Return answer + source records (evidence traceability)
+    Full RAG pipeline with tenant isolation:
+      1. Search vectors scoped to the authenticated user.
+      2. Fetch full records with a second PostgreSQL ownership check.
+      3. Build context only from owned records.
+      4. Call Groq LLM.
+      5. Return answer + evidence sources.
     """
-    # Step 1: Semantic search
-    hits = query_similar(user_query, n_results=n_results)
+    hits = query_similar(
+        user_query,
+        n_results=n_results,
+        where={"user_id": user_id},
+    )
 
     if not hits:
         return {
@@ -159,10 +169,19 @@ def handle_query(
             "query": user_query,
         }
 
-    # Step 2 & 3: Fetch full records from PostgreSQL
     source_records = []
     for hit in hits:
-        full = _fetch_record(db, hit["record_id"], hit["table"])
+        full = _fetch_record(
+            db,
+            hit["record_id"],
+            hit["table"],
+            user_id,
+        )
+
+        # Never expose a vector hit that fails the PostgreSQL ownership check.
+        if not full:
+            continue
+
         source_records.append({
             "record_id": hit["record_id"],
             "table": hit["table"],
@@ -171,11 +190,14 @@ def handle_query(
             "full_record": full,
         })
 
-    # Step 4: Build context from non-null records
-    non_null = [s["full_record"] for s in source_records if s["full_record"]]
-    context = _build_context(non_null) if non_null else "No full record details available."
+    if not source_records:
+        return {
+            "answer": "No relevant farm records found for your query. Please add some records first.",
+            "source_records": [],
+            "query": original_query if original_query else user_query,
+        }
 
-    # Step 5: Call LLM
+    context = _build_context([s["full_record"] for s in source_records])
     answer = _call_llm(context, user_query, original_query)
 
     return {

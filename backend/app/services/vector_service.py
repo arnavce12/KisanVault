@@ -1,14 +1,11 @@
 """
 vector_service.py
-─────────────────
 Handles ChromaDB embedding and retrieval using BAAI/bge-small-en-v1.5.
-Stores every farm record as a text document for semantic search.
 """
 
 import os
 import logging
 from typing import List, Dict, Any, Optional
-from functools import lru_cache
 
 from sentence_transformers import SentenceTransformer
 
@@ -16,12 +13,10 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# ─── Singleton: ChromaDB client & collection ──────────────────────────────────
-
 _chroma_client = None
 _collection = None
 _embedding_model: Optional[SentenceTransformer] = None
-_chroma_available = None  # None = not tested yet
+_chroma_available = None
 
 COLLECTION_NAME = "farm_records"
 
@@ -43,7 +38,6 @@ def _get_chroma_collection():
     try:
         import chromadb
         os.makedirs(settings.CHROMA_PATH, exist_ok=True)
-        # chromadb 1.x uses chromadb.PersistentClient(path=...)
         _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PATH)
         _collection = _chroma_client.get_or_create_collection(
             name=COLLECTION_NAME,
@@ -57,9 +51,6 @@ def _get_chroma_collection():
         return None
     return _collection
 
-
-
-# ─── Record → Text Serialiser ─────────────────────────────────────────────────
 
 def _record_to_text(record: Dict[str, Any], table: str) -> str:
     """Convert any record dict to a searchable text string."""
@@ -108,16 +99,15 @@ def _record_to_text(record: Dict[str, Any], table: str) -> str:
         return str(record)
 
 
-# ─── Public API ───────────────────────────────────────────────────────────────
-
 def embed_and_store(
     record_id: str,
     table: str,
     record_or_text: Any,
+    user_id: str,
 ) -> None:
     """
     Embed a farm record and store it in ChromaDB.
-    Called every time a record is added to the database.
+    The authenticated user's ID is stored as metadata for tenant isolation.
     """
     try:
         collection = _get_chroma_collection()
@@ -130,14 +120,17 @@ def embed_and_store(
             text = record_or_text
         else:
             text = _record_to_text(record_or_text, table)
-            
+
         embedding = model.encode(text).tolist()
 
-        # Upsert so re-adding same record doesn't duplicate
         collection.upsert(
             documents=[text],
             embeddings=[embedding],
-            metadatas=[{"record_id": record_id, "table": table}],
+            metadatas=[{
+                "record_id": record_id,
+                "table": table,
+                "user_id": user_id,
+            }],
             ids=[record_id],
         )
         logger.info(f"Embedded record {record_id} ({table}) into ChromaDB.")
@@ -148,24 +141,28 @@ def embed_and_store(
 def query_similar(
     query_text: str,
     n_results: int = 5,
-    where: Optional[Dict] = None,
+    where: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search ChromaDB for records semantically similar to query_text.
-    Returns a list of dicts with record_id, table, text_preview, distance.
-    Returns empty list if ChromaDB is unavailable.
+
+    The where filter is used for tenant scoping.
     """
     try:
         collection = _get_chroma_collection()
         if collection is None:
             return []
-        model = _get_embedding_model()
 
+        model = _get_embedding_model()
         query_embedding = model.encode(query_text).tolist()
+
+        collection_size = collection.count()
+        if collection_size == 0:
+            return []
 
         kwargs = {
             "query_embeddings": [query_embedding],
-            "n_results": min(n_results, collection.count() or 1),
+            "n_results": min(n_results, collection_size),
             "include": ["documents", "metadatas", "distances"],
         }
         if where:
@@ -176,9 +173,10 @@ def query_similar(
         hits = []
         if results and results.get("ids") and results["ids"][0]:
             for i, doc_id in enumerate(results["ids"][0]):
+                metadata = results["metadatas"][0][i] or {}
                 hits.append({
-                    "record_id": results["metadatas"][0][i].get("record_id", doc_id),
-                    "table": results["metadatas"][0][i].get("table", "unknown"),
+                    "record_id": metadata.get("record_id", doc_id),
+                    "table": metadata.get("table", "unknown"),
                     "text_preview": results["documents"][0][i][:300],
                     "distance": results["distances"][0][i],
                 })
@@ -188,13 +186,25 @@ def query_similar(
         return []
 
 
-def delete_record(record_id: str) -> None:
+def delete_record(record_id: str, user_id: Optional[str] = None) -> None:
     """Remove a record from ChromaDB when deleted from the database."""
     try:
         collection = _get_chroma_collection()
         if collection is None:
             return
-        collection.delete(ids=[record_id])
+
+        if user_id:
+            collection.delete(
+                where={
+                    "$and": [
+                        {"record_id": record_id},
+                        {"user_id": user_id},
+                    ]
+                }
+            )
+        else:
+            collection.delete(ids=[record_id])
+
         logger.info(f"Deleted record {record_id} from ChromaDB.")
     except Exception as e:
         logger.warning(f"Could not delete {record_id} from ChromaDB: {e}")
@@ -203,6 +213,7 @@ def delete_record(record_id: str) -> None:
 def collection_count() -> int:
     """Return number of documents in ChromaDB."""
     try:
-        return _get_chroma_collection().count()
+        collection = _get_chroma_collection()
+        return collection.count() if collection is not None else 0
     except Exception:
         return 0
