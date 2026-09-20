@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
-  const { user, login, isLoading: authLoading } = useAuth();
+  const { user, login, demoLogin, isLoading: authLoading } = useAuth();
   const router = useRouter();
   
   const [identifier, setIdentifier] = useState('');
@@ -48,10 +48,9 @@ export default function LoginPage() {
     <main className="w-full min-h-screen bg-surface">
       <div className="w-full min-h-[calc(100vh-2rem)] flex flex-col lg:flex-row items-stretch p-0 sm:p-6 lg:p-8 gap-0 sm:gap-6 lg:gap-8">
         
-        {/* Left Visual Panel - Desktop Only (replicates desktop behavior) */}
         <section className="hidden lg:flex relative w-full lg:w-1/2 min-h-[740px] rounded-3xl overflow-hidden shadow-sm flex-col justify-between p-10 text-surface-bright">
           <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 hover:scale-105" 
-               style={{ backgroundImage: "url('/assets/kisanvault_desktop_login/screen.png')" }}>
+               style={{ backgroundImage: "url('/assets/authentic_indian_agricultural_landscape_scene_in_natural_warm_morning_daylight/screen.png')" }}>
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/35 to-primary/20"></div>
           
@@ -86,7 +85,7 @@ export default function LoginPage() {
 
         {/* Top Banner - Mobile Only (replicates mobile behavior) */}
         <div className="lg:hidden relative w-full h-48 overflow-hidden flex flex-col justify-end px-4">
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/assets/kisanvault_mobile_login/screen.png')" }}></div>
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/assets/authentic_indian_agricultural_landscape_scene_in_natural_warm_morning_daylight/screen.png')" }}></div>
           <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-surface/60 to-surface"></div>
           
           <div className="relative z-10 flex items-center gap-2 mb-2 bg-surface/90 backdrop-blur-sm self-start px-3 py-1.5 rounded-full shadow-sm">
@@ -208,6 +207,19 @@ export default function LoginPage() {
                 <span>Encrypted &amp; safe. Built for simplicity.</span>
               </div>
             </form>
+
+            {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+              <button 
+                type="button" 
+                onClick={async () => {
+                  try { await demoLogin(); } catch(e) {}
+                }}
+                className="w-full h-12 lg:h-[52px] mt-4 rounded-xl bg-tertiary-container text-tertiary font-semibold text-base flex items-center justify-center gap-2.5 shadow-sm hover:opacity-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[20px]">science</span>
+                <span>Use Demo Account</span>
+              </button>
+            )}
 
             <div className="mt-8 pt-6 border-t border-border flex flex-col lg:flex-row items-center justify-between gap-3 text-center lg:text-left">
               <div className="flex flex-col">
