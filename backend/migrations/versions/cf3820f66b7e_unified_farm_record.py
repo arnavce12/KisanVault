@@ -53,11 +53,20 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_farm_records_id'), 'farm_records', ['id'], unique=False)
     
-    op.drop_table('crops')
-    op.drop_table('expenses')
-    op.drop_table('harvests')
-    op.drop_table('fields')
-    op.drop_table('activities')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+    
+    if 'crops' in tables:
+        op.drop_table('crops')
+    if 'expenses' in tables:
+        op.drop_table('expenses')
+    if 'harvests' in tables:
+        op.drop_table('harvests')
+    if 'fields' in tables:
+        op.drop_table('fields')
+    if 'activities' in tables:
+        op.drop_table('activities')
     # ### end Alembic commands ###
 
 

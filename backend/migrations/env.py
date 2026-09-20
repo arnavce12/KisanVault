@@ -13,14 +13,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import Base
 import app.models  # noqa — ensures all models are imported
 
-# Load .env
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+# Load settings from application config (which handles .env resolving)
+from app.config import settings
 
 config = context.config
 
-# Override sqlalchemy.url from env if available
-db_url = os.getenv("DATABASE_URL")
+# Override sqlalchemy.url from app configuration
+db_url = str(settings.DATABASE_URL).replace('%', '%%')
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
 
