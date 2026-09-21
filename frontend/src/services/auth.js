@@ -1,4 +1,4 @@
-import { apiClient, BASE_URL } from './apiClient';
+import { apiClient, BASE_URL, fetchWithRetry } from './apiClient';
 
 export const authService = {
   login: async (credentials) => {
@@ -12,14 +12,16 @@ export const authService = {
     formData.append('username', email);
     formData.append('password', credentials.password);
 
-    const response = await fetch(`${BASE_URL}/auth/login`, {
+    const response = await fetchWithRetry(`${BASE_URL}/auth/login`, {
       method: 'POST',
       body: formData,
     });
     
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw { status: response.status, message: data.message || 'API Error', ...data };
+      let msg = data.detail || data.message || 'API Error';
+      if (msg === 'Invalid email or password.') msg = 'Invalid mobile number or password.';
+      throw { status: response.status, message: msg, ...data };
     }
     return data;
   },

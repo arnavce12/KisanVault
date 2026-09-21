@@ -146,10 +146,13 @@ export default function LoginPage() {
                   <span className="text-sm text-text-muted font-normal hidden lg:inline">{t('primaryContact')}</span>
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-4 text-text-muted text-[22px] pointer-events-none">mail</span>
+                  <span className="material-symbols-outlined absolute left-4 text-text-muted text-[22px] pointer-events-none">phone_iphone</span>
                   <input 
                     id="identifier"
-                    type="text" 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength="10"
+                    pattern="[0-9]{10}"
                     required 
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}

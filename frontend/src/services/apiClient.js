@@ -1,5 +1,25 @@
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
+export async function fetchWithRetry(url, config, maxRetries = 12, delayMs = 5000) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      const response = await fetch(url, config);
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        attempt++;
+        if (attempt >= maxRetries) return response;
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      attempt++;
+      if (attempt >= maxRetries) throw error;
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
 // Helper for mapping camelCase to snake_case for Backend
 export const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 export const toCamelCase = (str) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
@@ -40,7 +60,7 @@ export async function apiClient(endpoint, { method = 'GET', body, headers = {} }
   }
 
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+    const response = await fetchWithRetry(`${BASE_URL}${endpoint}`, config);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -50,7 +70,7 @@ export async function apiClient(endpoint, { method = 'GET', body, headers = {} }
           window.dispatchEvent(new Event('unauthorized'));
         }
       }
-      const apiError = new Error(data.message || 'API Error');
+      const apiError = new Error(data.detail || data.message || 'API Error');
       apiError.status = response.status;
       apiError.data = data;
       throw apiError;
