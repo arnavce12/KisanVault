@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import BackendLoadingWidget from '@/components/ui/BackendLoadingWidget';
 
 export default function LoginPage() {
   const { user, login, demoLogin, isLoading: authLoading } = useAuth();
@@ -48,6 +49,7 @@ export default function LoginPage() {
 
   return (
     <main className="w-full min-h-screen bg-surface relative">
+      <BackendLoadingWidget isLoading={isSubmitting} />
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-1 border border-border rounded-lg bg-surface-bright/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
         <span className="material-symbols-outlined text-[18px] text-text-muted">language</span>
         <select 
